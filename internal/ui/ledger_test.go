@@ -24,7 +24,7 @@ func TestTripJournalPersistsBalancesAndHistoricalRate(t *testing.T) {
 	journal.Opening = map[string]int64{"RUB": 5_000_000}
 	l = l.WithJournal(journal)
 	l.Rates = map[string]int64{"THB": 2_500_000}
-	l, err = l.WithCategoryName(0, "Экскурсии")
+	l, err = l.WithCategory(0, "Экскурсии", "trip")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestArchivedCategoryAndExport(t *testing.T) {
 	op := service.Operation{JournalID: 1, Date: "2026-11-03", Currency: "THB", Amount: 35_000,
 		CategoryID: l.Categories[0].ID, Rate: 2_500_000, Rubles: 87_500}
 	l = l.WithOperation(-1, op)
-	l, err = l.WithCategoryName(op.CategoryID, "Кафе; ужин")
+	l, err = l.WithCategory(op.CategoryID, "Кафе; ужин", l.Category(op.CategoryID).Icon)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,6 +11,7 @@ type Category struct {
 	ID       int64  `json:"id"`
 	Name     string `json:"name"`
 	Archived bool   `json:"archived,omitempty"`
+	Icon     string `json:"icon,omitempty"`
 }
 
 func (l *Ledger) addCategory(name string) int64 {
@@ -21,12 +22,16 @@ func (l *Ledger) addCategory(name string) int64 {
 }
 
 func (l Ledger) CategoryName(id int64) string {
+	return l.Category(id).Name
+}
+
+func (l Ledger) Category(id int64) Category {
 	for _, c := range l.Categories {
 		if c.ID == id {
-			return c.Name
+			return c
 		}
 	}
-	return ""
+	return Category{}
 }
 
 func (l Ledger) CategoryInUse(id int64) bool {
@@ -46,7 +51,7 @@ func (l Ledger) ExpenseCategories(selectedID int64) ([]string, map[string]int64)
 	return names, ids
 }
 
-func (l Ledger) WithCategoryName(id int64, name string) (Ledger, error) {
+func (l Ledger) WithCategory(id int64, name, icon string) (Ledger, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > 40 || strings.ContainsAny(name, "\r\n\t") {
 		return Ledger{}, errors.New("введи название категории в одну строку, до 40 символов")
@@ -57,11 +62,19 @@ func (l Ledger) WithCategoryName(id int64, name string) (Ledger, error) {
 		}
 	}
 	l.Categories = slices.Clone(l.Categories)
+	if icon == "" {
+		icon = "tag"
+	}
 	if id == 0 {
 		l.addCategory(name)
+		l.Categories[len(l.Categories)-1].Icon = icon
 	} else {
 		index := slices.IndexFunc(l.Categories, func(c Category) bool { return c.ID == id })
+		if index < 0 {
+			return Ledger{}, errors.New("категория не найдена")
+		}
 		l.Categories[index].Name = name
+		l.Categories[index].Icon = icon
 	}
 	return l, nil
 }

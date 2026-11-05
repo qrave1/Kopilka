@@ -50,7 +50,7 @@ go run .
 
 ```powershell
 go install fyne.io/tools/cmd/fyne@v1.7.4
-fyne package -os android/arm64 -app-id io.kopilka.travel -name Kopilka -app-version 0.0.18 -app-build 18
+fyne package -os android/arm64 -app-id io.kopilka.travel -name Kopilka -app-version 0.0.20 -app-build 20
 adb install -r Kopilka.apk
 ```
 

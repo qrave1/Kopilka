@@ -7,8 +7,6 @@ import (
 	"io/fs"
 	"path"
 	"strings"
-
-	"kopilka/internal/service"
 )
 
 //go:embed migrations/*.sql
@@ -81,9 +79,6 @@ func applyMigration(db *sql.DB, files fs.FS, name string, version int) error {
 }
 
 func seedInitialLedger(tx *sql.Tx) error {
-	l := service.NewLedger()
-	if _, err := tx.Exec("INSERT INTO ledger_meta VALUES (1, 0, ?, ?)", l.NextCategoryID, l.NextOperationID); err != nil {
-		return err
-	}
-	return saveCategories(tx, l.Categories)
+	_, err := tx.Exec("INSERT INTO ledger_meta (id, started, next_category_id, next_operation_id) VALUES (1, 0, 1, 1)")
+	return err
 }

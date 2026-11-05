@@ -46,10 +46,9 @@ func (s *screen) home() {
 	if journal.Archived {
 		content.Add(widget.NewLabel("Поездка завершена"))
 	} else {
-		content.Add(surface(container.NewGridWithColumns(3,
+		content.Add(surface(container.NewGridWithColumns(2,
 			newIconTile("Добавить трату", theme.ContentAddIcon(), true, s.afterTap(func() { s.editOperation(-1, false) })),
 			newIconTile("Обмен", swapIcon, false, s.afterTap(func() { s.editOperation(-1, true) })),
-			newIconTile("Наличные", walletIcon, false, s.afterTap(s.openingCash)),
 		)))
 	}
 	content.Add(widget.NewLabelWithStyle("Операции", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
@@ -75,7 +74,7 @@ func (s *screen) home() {
 		func() fyne.CanvasObject { return newJournalRow() },
 		func(id widget.ListItemID, item fyne.CanvasObject) {
 			op := s.ledger.Operations[indices[id]]
-			item.(*journalRow).update(op, s.ledger.CategoryName(op.CategoryID))
+			item.(*journalRow).update(op, s.ledger.Category(op.CategoryID))
 		},
 	)
 	list.OnSelected = func(id widget.ListItemID) {
@@ -109,13 +108,13 @@ func summaryMetric(title, amount string, align fyne.TextAlign) *fyne.Container {
 
 type journalRow struct {
 	widget.BaseWidget
-	glyph                       *widget.Icon
+	mark                        categoryMark
 	title, date, amount, detail *widget.Label
 }
 
 func newJournalRow() *journalRow {
 	row := &journalRow{
-		glyph:  widget.NewIcon(tagIcon),
+		mark:   newCategoryMark("tag"),
 		title:  alignedLabel("Категория", fyne.TextAlignLeading, true),
 		date:   alignedLabel("Дата", fyne.TextAlignLeading, false),
 		amount: alignedLabel("0,00 ₽", fyne.TextAlignTrailing, true),
@@ -127,26 +126,27 @@ func newJournalRow() *journalRow {
 
 func (row *journalRow) CreateRenderer() fyne.WidgetRenderer {
 	content := container.NewGridWithColumns(2,
-		container.NewBorder(nil, nil, container.NewPadded(container.NewCenter(row.glyph)), nil,
+		container.NewBorder(nil, nil, container.NewPadded(row.mark.content()), nil,
 			container.NewVBox(row.title, row.date)),
 		container.NewVBox(row.amount, row.detail),
 	)
 	return widget.NewSimpleRenderer(surface(content))
 }
 
-func (row *journalRow) update(op service.Operation, category string) {
+func (row *journalRow) update(op service.Operation, category service.Category) {
 	detail := " "
-	icon := categoryIcon(category)
+	title := category.Name
+	icon := categoryIcon(category.Icon)
 	switch {
 	case op.Received != "":
-		category = "Обмен"
-		icon = swapIcon
+		title = "Обмен"
+		icon = categoryIconOption{icon: swapIcon, rgb: 0x475569}
 		detail = "+ " + money(op.Incoming, op.Received)
 	case op.Currency != "RUB":
 		detail = "~ " + money(op.Rubles, "RUB")
 	}
-	row.title.SetText(category)
-	row.glyph.SetResource(theme.NewPrimaryThemedResource(icon))
+	row.title.SetText(title)
+	row.mark.set(icon)
 	row.date.SetText(op.Date)
 	row.amount.SetText("- " + money(op.Amount, op.Currency))
 	row.detail.SetText(detail)

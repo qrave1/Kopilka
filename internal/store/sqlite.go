@@ -49,9 +49,9 @@ func (s *Store) Load() (service.Ledger, error) {
 	`).Scan(&l.NextCategoryID, &l.NextOperationID); err != nil {
 		return service.Ledger{}, err
 	}
-	if err := scanRows(tx, "SELECT id, name, archived FROM categories ORDER BY id", func(row *sql.Rows) error {
+	if err := scanRows(tx, "SELECT id, name, archived, icon FROM categories ORDER BY id", func(row *sql.Rows) error {
 		var c service.Category
-		if err := row.Scan(&c.ID, &c.Name, &c.Archived); err != nil {
+		if err := row.Scan(&c.ID, &c.Name, &c.Archived, &c.Icon); err != nil {
 			return err
 		}
 		l.Categories = append(l.Categories, c)
@@ -178,7 +178,7 @@ func saveSnapshot(tx *sql.Tx, l service.Ledger) error {
 
 func saveCategories(tx *sql.Tx, categories []service.Category) error {
 	for _, c := range categories {
-		if _, err := tx.Exec("INSERT INTO categories (id, name, archived) VALUES (?, ?, ?)", c.ID, c.Name, c.Archived); err != nil {
+		if _, err := tx.Exec("INSERT INTO categories (id, name, archived, icon) VALUES (?, ?, ?, ?)", c.ID, c.Name, c.Archived, c.Icon); err != nil {
 			return err
 		}
 	}

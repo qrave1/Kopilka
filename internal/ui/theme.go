@@ -14,6 +14,9 @@ func newAppTheme() fyne.Theme {
 }
 
 func (t appTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	if name == categoryGlyphColor {
+		return color.White
+	}
 	dark := variant != theme.VariantLight
 	if dark {
 		switch name {

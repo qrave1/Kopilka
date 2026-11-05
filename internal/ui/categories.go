@@ -22,7 +22,7 @@ func (s *screen) categories() {
 		name.Truncation = fyne.TextTruncateEllipsis
 		edit := widget.NewButtonWithIcon("Изменить", theme.DocumentCreateIcon(), s.afterTap(func() { s.editCategory(i) }))
 		edit.Importance = widget.LowImportance
-		row := surface(container.NewBorder(nil, nil, iconBadge(categoryIcon(c.Name)), edit, name))
+		row := surface(container.NewBorder(nil, nil, newCategoryMark(c.Icon).content(), edit, name))
 		if c.Archived {
 			archive.Add(row)
 		} else {
@@ -46,7 +46,8 @@ func (s *screen) editCategory(index int) {
 		current = s.ledger.Categories[index]
 	}
 	name := entry(current.Name, "Название категории")
-	fields := container.NewVBox(name)
+	icon := current.Icon
+	fields := container.NewVBox(name, categoryIconPicker(&icon))
 	if current.Archived {
 		fields.Add(widget.NewButtonWithIcon("Восстановить категорию", theme.ViewRefreshIcon(), func() {
 			next := s.ledger.RestoreCategory(index)
@@ -70,7 +71,7 @@ func (s *screen) editCategory(index int) {
 		}
 	}
 	s.form("Категория", fields, s.categories, func() {
-		next, err := s.ledger.WithCategoryName(current.ID, name.Text)
+		next, err := s.ledger.WithCategory(current.ID, name.Text, icon)
 		if err != nil {
 			dialog.ShowError(err, s.window)
 			return

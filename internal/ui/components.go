@@ -94,23 +94,6 @@ var (
 	tagIcon      = vectorIcon("tag", "M3 3h8l10 10-8 8L3 11z M6 6v3h3V6z")
 )
 
-func categoryIcon(name string) fyne.Resource {
-	switch name {
-	case "Еда":
-		return foodIcon
-	case "Транспорт":
-		return transportIcon
-	case "Жильё":
-		return theme.HomeIcon()
-	case "Развлечения":
-		return entertainmentIcon
-	case "Покупки":
-		return shoppingIcon
-	default:
-		return tagIcon
-	}
-}
-
 var (
 	foodIcon          = vectorIcon("food", "M3 3h2v5h1V3h2v5h1V3h2v6a4 4 0 0 1-3 4v8H6v-8a4 4 0 0 1-3-4z M19 3v18h-2v-7h-4v-3a8 8 0 0 1 6-8z")
 	transportIcon     = vectorIcon("transport", "M3 8a5 5 0 0 1 5-5h8a5 5 0 0 1 5 5v10h-2v3h-3v-3H8v3H5v-3H3z M5 8v3h14V8z M6 14v2h3v-2z M15 14v2h3v-2z")

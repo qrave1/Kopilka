@@ -11,11 +11,3 @@ type Ledger struct {
 	Categories      []Category       `json:"categories"`
 	Operations      []Operation      `json:"operations"`
 }
-
-func NewLedger() Ledger {
-	l := Ledger{Version: LedgerVersion, NextCategoryID: 1, NextOperationID: 1}
-	for _, name := range []string{"Еда", "Транспорт", "Жильё", "Развлечения", "Покупки", "Другое"} {
-		l.addCategory(name)
-	}
-	return l
-}

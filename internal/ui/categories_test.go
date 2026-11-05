@@ -33,6 +33,7 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 	tapButton(t, w, "Категории")
 	tapButton(t, w, "Добавить категорию")
 	controls[*widget.Entry](w.Content())[0].SetText("Экскурсии")
+	tapButton(t, w, "Путешествие")
 	tapButton(t, w, "Сохранить")
 	tapButton(t, w, "Настройки")
 	exportButtons := 0
@@ -59,6 +60,7 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(l.Operations) != 1 || l.CategoryName(l.Operations[0].CategoryID) != "Экскурсии" ||
+		l.Category(l.Operations[0].CategoryID).Icon != "trip" ||
 		l.Operations[0].Rubles != 87_500 {
 		t.Fatalf("category or amount lost on saving expense: %+v", l.Operations)
 	}
