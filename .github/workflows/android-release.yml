@@ -65,11 +65,11 @@ jobs:
             "$sdkmanager" --sdk_root="$sdk" --install "${missing[@]}"
           fi
 
-          # Fyne picks the SDK tools by scanning these directories.
+          # Fyne checks DirEntry.IsDir(), which skips symlinked version directories.
           selected_sdk="$RUNNER_TEMP/kopilka-android-sdk"
           mkdir -p "$selected_sdk/platforms" "$selected_sdk/build-tools"
           ln -s "$sdk/platforms/android-36" "$selected_sdk/platforms/android-36"
-          ln -s "$sdk/build-tools/$BUILD_TOOLS_VERSION" "$selected_sdk/build-tools/$BUILD_TOOLS_VERSION"
+          cp -a "$sdk/build-tools/$BUILD_TOOLS_VERSION" "$selected_sdk/build-tools/"
           echo "ANDROID_HOME=$selected_sdk" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$sdk/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
