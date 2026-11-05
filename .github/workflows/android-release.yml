@@ -1,0 +1,112 @@
+name: Android APK release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CGO_ENABLED: '1'
+      NDK_VERSION: '28.2.13676358'
+      BUILD_TOOLS_VERSION: '36.0.0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read Android version from tag
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+            echo "::error::Expected a version tag in the form vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          build=$(( BASH_REMATCH[1] * 1000000 + BASH_REMATCH[2] * 1000 + BASH_REMATCH[3] ))
+          if (( build < 1 || build > 2100000000 )); then
+            echo "::error::Version tag produces an invalid Android versionCode"
+            exit 1
+          fi
+          echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "APP_BUILD=$build" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.2'
+          cache-dependency-path: go.sum
+
+      - name: Test
+        run: go test -tags ci ./...
+
+      - name: Select Android SDK and NDK
+        shell: bash
+        run: |
+          sdk="$ANDROID_HOME"
+          sdkmanager --sdk_root="$sdk" --install \
+            "platforms;android-36" "build-tools;$BUILD_TOOLS_VERSION" "ndk;$NDK_VERSION"
+
+          # Fyne picks the SDK tools by scanning these directories.
+          selected_sdk="$RUNNER_TEMP/kopilka-android-sdk"
+          mkdir -p "$selected_sdk/platforms" "$selected_sdk/build-tools"
+          ln -s "$sdk/platforms/android-36" "$selected_sdk/platforms/android-36"
+          ln -s "$sdk/build-tools/$BUILD_TOOLS_VERSION" "$selected_sdk/build-tools/$BUILD_TOOLS_VERSION"
+          echo "ANDROID_HOME=$selected_sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$sdk/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Build and verify ARM64 APK
+        shell: bash
+        run: |
+          go install fyne.io/tools/cmd/fyne@v1.7.4
+          "$(go env GOPATH)/bin/fyne" package -os android/arm64 \
+            -app-id io.kopilka.travel -name Kopilka \
+            -app-version "$APP_VERSION" -app-build "$APP_BUILD"
+
+          aapt2="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/aapt2"
+          "$aapt2" dump badging Kopilka.apk > "$RUNNER_TEMP/apk-info.txt" 2> "$RUNNER_TEMP/apk-warnings.txt"
+          cat "$RUNNER_TEMP/apk-warnings.txt"
+          grep -F "package: name='io.kopilka.travel' versionCode='$APP_BUILD' versionName='$APP_VERSION'" "$RUNNER_TEMP/apk-info.txt"
+          grep -Fx "native-code: 'arm64-v8a'" "$RUNNER_TEMP/apk-info.txt"
+          "$aapt2" dump xmltree --file res/mipmap-anydpi-v26/ic_launcher_round.xml Kopilka.apk > /dev/null
+          mkdir -p dist
+          mv Kopilka.apk dist/Kopilka-android-arm64.apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: dist/Kopilka-android-arm64.apk
+          if-no-files-found: error
+          overwrite: true
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-apk
+          path: dist
+
+      - name: Publish APK to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          apk=dist/Kopilka-android-arm64.apk
+          if gh release view "$GITHUB_REF_NAME" >/dev/null; then
+            gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$apk" --verify-tag --generate-notes
+          fi
