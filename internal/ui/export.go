@@ -22,7 +22,7 @@ import (
 
 func (s *screen) exportControls() []fyne.CanvasObject {
 	l := s.ledger
-	return []fyne.CanvasObject{
+	controls := []fyne.CanvasObject{
 		container.NewBorder(nil, nil, iconBadge(theme.DownloadIcon()), nil,
 			widget.NewLabelWithStyle("Экспорт", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})),
 		widget.NewLabel("CSV — журнал для таблиц"),
@@ -38,6 +38,12 @@ func (s *screen) exportControls() []fyne.CanvasObject {
 			})
 		}),
 	}
+	if s.data.ExportDB != nil {
+		controls = append(controls, widget.NewButtonWithIcon("Сохранить файл базы (.db)", theme.DownloadIcon(), func() {
+			s.exportFile(".db", s.data.ExportDB)
+		}))
+	}
+	return controls
 }
 
 func (s *screen) exportFile(extension string, write func(io.Writer) error) {

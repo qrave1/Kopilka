@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -21,16 +22,22 @@ type screen struct {
 	ledger     service.Ledger
 	journalID  int64
 	tapPending bool
+	data       DataActions
 }
 
-func Run(a fyne.App, l service.Ledger, save func(service.Ledger) error, loadErr error) {
+type DataActions struct {
+	Reset    func() (service.Ledger, error)
+	ExportDB func(io.Writer) error
+}
+
+func Run(a fyne.App, l service.Ledger, save func(service.Ledger) error, data DataActions, loadErr error) {
 	a.Settings().SetTheme(newAppTheme())
 	w := a.NewWindow("Копилка")
 	if loadErr != nil {
 		w.SetContent(widget.NewLabel("Не удалось открыть журнал."))
 		dialog.ShowError(loadErr, w)
 	} else {
-		s := &screen{window: w, save: save, ledger: l}
+		s := &screen{window: w, save: save, ledger: l, data: data}
 		s.home()
 	}
 	w.ShowAndRun()

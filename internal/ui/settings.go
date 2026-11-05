@@ -66,6 +66,11 @@ func (s *screen) settings() {
 	}
 	fields.Add(surface(rateFields))
 	fields.Add(surface(container.NewVBox(s.exportControls()...)))
+	if s.data.Reset != nil {
+		remove := widget.NewButtonWithIcon("Удалить все данные", theme.DeleteIcon(), s.confirmReset)
+		remove.Importance = widget.DangerImportance
+		fields.Add(surface(container.NewVBox(widget.NewLabel("Сброс данных"), remove)))
+	}
 
 	save := widget.NewButtonWithIcon("Сохранить", theme.ConfirmIcon(), func() {
 		next, err := s.ledger.WithRates(inputValues(rates))
@@ -81,6 +86,26 @@ func (s *screen) settings() {
 	save.OnTapped = s.afterTap(save.OnTapped)
 	s.showPageWithNavigation(settingsPage, container.NewPadded(sectionTitle("Настройки")), save,
 		container.NewVScroll(container.NewPadded(fields)), beforeLeave)
+}
+
+func (s *screen) confirmReset() {
+	confirm := dialog.NewConfirm("Удалить все данные?",
+		"Поездки, операции, остатки, курсы и пользовательские категории будут удалены. Стандартные категории восстановятся.", func(ok bool) {
+			if !ok {
+				return
+			}
+			ledger, err := s.data.Reset()
+			if err != nil {
+				dialog.ShowError(err, s.window)
+				return
+			}
+			s.ledger = ledger
+			s.journalID = 0
+			s.home()
+		}, s.window)
+	confirm.SetConfirmText("Удалить")
+	confirm.SetConfirmImportance(widget.DangerImportance)
+	confirm.Show()
 }
 
 func inputValues(fields map[string]*widget.Entry) map[string]string {

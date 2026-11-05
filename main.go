@@ -16,11 +16,11 @@ func main() {
 	a := app.NewWithID(appID)
 	storage, err := store.Open(filepath.Join(a.Storage().RootURI().Path(), "ledger.db"))
 	if err != nil {
-		ui.Run(a, service.Ledger{}, nil, err)
+		ui.Run(a, service.Ledger{}, nil, ui.DataActions{}, err)
 		return
 	}
 	defer storage.Close()
 
 	ledger, err := storage.Load()
-	ui.Run(a, ledger, storage.Save, err)
+	ui.Run(a, ledger, storage.Save, ui.DataActions{Reset: storage.Reset, ExportDB: storage.ExportDB}, err)
 }

@@ -12,7 +12,8 @@ import (
 
 // Store owns the connection to the local SQLite ledger.
 type Store struct {
-	db *sql.DB
+	db  *sql.DB
+	dir string
 }
 
 func Open(path string) (*Store, error) {
@@ -24,7 +25,7 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	s := &Store{db: db}
+	s := &Store{db: db, dir: filepath.Dir(path)}
 	if err := migrate(db, migrations); err != nil {
 		db.Close()
 		return nil, err
