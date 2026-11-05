@@ -12,6 +12,10 @@ import (
 )
 
 func (s *screen) editOperation(index int, exchange bool) {
+	journal, ok := s.ledger.Journal(s.journalID)
+	if !ok || journal.Archived {
+		return
+	}
 	var previous service.Operation
 	if index >= 0 {
 		previous = s.ledger.Operations[index]
@@ -19,11 +23,11 @@ func (s *screen) editOperation(index int, exchange bool) {
 	date := entry(time.Now().Format(time.DateOnly), "ГГГГ-ММ-ДД")
 	amount := entry("", "0,00")
 	currency := widget.NewSelect(currencies, nil)
-	currency.SetSelected("THB")
+	currency.SetSelected(journal.Currency)
 	received := widget.NewSelect(currencies, nil)
 	received.SetSelected("USD")
 	if exchange {
-		from, to := s.ledger.SuggestedExchange()
+		from, to := s.ledger.SuggestedExchange(journal)
 		currency.SetSelected(from)
 		received.SetSelected(to)
 	}
@@ -53,7 +57,7 @@ func (s *screen) editOperation(index int, exchange bool) {
 		fields.Add(container.NewVBox(widget.NewLabel("Сумма"), currency, amount,
 			widget.NewLabel("Категория"), category, preview))
 		if len(names) == 0 {
-			fields.Add(widget.NewButton("Добавить категорию", s.categories))
+			fields.Add(widget.NewButtonWithIcon("Добавить категорию", tagIcon, s.categories))
 		}
 		updatePreview := func() {
 			value, err := service.ParseDecimal(amount.Text, 2)
@@ -83,6 +87,7 @@ func (s *screen) editOperation(index int, exchange bool) {
 			dialog.ShowError(err, s.window)
 			return
 		}
+		op.JournalID = journal.ID
 		s.saveWithBalanceCheck(s.ledger.WithOperation(index, op))
 	}
 	var remove func()

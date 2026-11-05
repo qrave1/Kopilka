@@ -8,6 +8,7 @@ import (
 )
 
 type Operation struct {
+	JournalID  int64  `json:"journal_id"`
 	ID         int64  `json:"id"`
 	Date       string `json:"date"`
 	Currency   string `json:"currency"`
@@ -52,10 +53,10 @@ func (l Ledger) PrepareOperation(input OperationInput, previous Operation) (Oper
 }
 
 // TotalSpentRubles returns the sum of saved expense equivalents in kopecks.
-func (l Ledger) TotalSpentRubles() int64 {
+func (l Ledger) TotalSpentRubles(journalID int64) int64 {
 	var total int64
 	for _, op := range l.Operations {
-		if op.Received == "" {
+		if op.JournalID == journalID && op.Received == "" {
 			total += op.Rubles
 		}
 	}

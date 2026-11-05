@@ -20,8 +20,14 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := screen{window: w, ledger: l, save: storage.Save}
+	s.home()
+	tapButton(t, w, "Новая поездка")
+	controls[*widget.Entry](w.Content())[0].SetText("Таиланд")
+	tapButton(t, w, "Сохранить")
+	journal := s.ledger.Journals[0]
+	journal.Opening = map[string]int64{"THB": 100_000}
+	s.ledger = s.ledger.WithJournal(journal)
 	s.ledger.Rates = map[string]int64{"THB": 2_500_000}
-	s.ledger.Opening = map[string]int64{"THB": 100_000}
 	s.home()
 
 	tapButton(t, w, "Категории")
@@ -60,6 +66,12 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 
 func tapButton(t *testing.T, w fyne.Window, label string) {
 	t.Helper()
+	for _, tile := range controls[*iconTile](w.Content()) {
+		if tile.label == label {
+			fynetest.Tap(tile)
+			return
+		}
+	}
 	for _, button := range controls[*widget.Button](w.Content()) {
 		if button.Text == label {
 			fynetest.Tap(button)

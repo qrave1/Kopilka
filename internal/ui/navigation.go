@@ -3,6 +3,7 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -10,6 +11,7 @@ type page int
 
 const (
 	journalPage page = iota
+	tripsPage
 	categoriesPage
 	settingsPage
 )
@@ -21,11 +23,13 @@ func (s *screen) showPage(active page, header, footer, body fyne.CanvasObject) {
 func (s *screen) showPageWithNavigation(active page, header, actions, body fyne.CanvasObject, beforeLeave func(func())) {
 	tabs := []struct {
 		label string
+		icon  fyne.Resource
 		open  func()
 	}{
-		{"Журнал", s.home},
-		{"Категории", s.categories},
-		{"Настройки", s.settings},
+		{"Журнал", theme.HomeIcon(), s.home},
+		{"Поездки", suitcaseIcon, s.trips},
+		{"Категории", tagIcon, s.categories},
+		{"Настройки", theme.SettingsIcon(), s.settings},
 	}
 	bar := container.NewGridWithColumns(len(tabs))
 	for i, tab := range tabs {
@@ -33,20 +37,19 @@ func (s *screen) showPageWithNavigation(active page, header, actions, body fyne.
 		if beforeLeave != nil {
 			open = func() { beforeLeave(tab.open) }
 		}
-		button := widget.NewButton(tab.label, s.afterTap(open))
-		button.Importance = widget.LowImportance
+		var tapped func()
 		if page(i) == active {
-			button.Importance = widget.HighImportance
 			// Tapping the current tab must not reset fields or scroll position.
-			button.OnTapped = nil
+		} else {
+			tapped = s.afterTap(open)
 		}
-		bar.Add(button)
+		bar.Add(newIconTile(tab.label, tab.icon, page(i) == active, tapped))
 	}
 	footer := container.NewVBox()
 	if actions != nil {
 		footer.Add(actions)
 	}
 	footer.Add(widget.NewSeparator())
-	footer.Add(bar)
+	footer.Add(surface(bar))
 	s.window.SetContent(container.NewBorder(header, footer, nil, nil, body))
 }

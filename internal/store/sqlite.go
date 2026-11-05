@@ -45,8 +45,8 @@ func (s *Store) Load() (service.Ledger, error) {
 
 	l := service.Ledger{Version: service.LedgerVersion}
 	if err := tx.QueryRow(`
-		SELECT started, next_category_id, next_operation_id FROM ledger_meta WHERE id = 1
-	`).Scan(&l.Started, &l.NextCategoryID, &l.NextOperationID); err != nil {
+		SELECT next_category_id, next_operation_id FROM ledger_meta WHERE id = 1
+	`).Scan(&l.NextCategoryID, &l.NextOperationID); err != nil {
 		return service.Ledger{}, err
 	}
 	if err := scanRows(tx, "SELECT id, name, archived FROM categories ORDER BY id", func(row *sql.Rows) error {
@@ -60,12 +60,12 @@ func (s *Store) Load() (service.Ledger, error) {
 		return service.Ledger{}, err
 	}
 	if err := scanRows(tx, `
-		SELECT id, date, currency, amount, coalesce(received_currency, ''),
+		SELECT journal_id, id, date, currency, amount, coalesce(received_currency, ''),
 		       coalesce(received_amount, 0), coalesce(category_id, 0), coalesce(rate, 0), coalesce(rubles, 0)
 		FROM operations ORDER BY id
 	`, func(row *sql.Rows) error {
 		var op service.Operation
-		if err := row.Scan(&op.ID, &op.Date, &op.Currency, &op.Amount, &op.Received,
+		if err := row.Scan(&op.JournalID, &op.ID, &op.Date, &op.Currency, &op.Amount, &op.Received,
 			&op.Incoming, &op.CategoryID, &op.Rate, &op.Rubles); err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (s *Store) Load() (service.Ledger, error) {
 	}); err != nil {
 		return service.Ledger{}, err
 	}
-	l.Opening, err = readAmounts(tx, "SELECT currency, amount FROM opening_balances")
+	l.Journals, err = loadJournals(tx)
 	if err != nil {
 		return service.Ledger{}, err
 	}
@@ -134,27 +134,24 @@ func saveSnapshot(tx *sql.Tx, l service.Ledger) error {
 	if _, err := tx.Exec(`
 		DELETE FROM operations;
 		DELETE FROM categories;
-		DELETE FROM opening_balances;
+		DELETE FROM journal_opening_balances;
+		DELETE FROM journals;
 		DELETE FROM rates;
 	`); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`
-		INSERT INTO ledger_meta (id, started, next_category_id, next_operation_id) VALUES (1, ?, ?, ?)
-		ON CONFLICT(id) DO UPDATE SET started=excluded.started,
-			next_category_id=excluded.next_category_id, next_operation_id=excluded.next_operation_id
-	`, l.Started, l.NextCategoryID, l.NextOperationID); err != nil {
+		INSERT INTO ledger_meta (id, next_category_id, next_operation_id) VALUES (1, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET next_category_id=excluded.next_category_id,
+			next_operation_id=excluded.next_operation_id
+	`, l.NextCategoryID, l.NextOperationID); err != nil {
 		return err
 	}
-	for _, c := range l.Categories {
-		if _, err := tx.Exec("INSERT INTO categories (id, name, archived) VALUES (?, ?, ?)", c.ID, c.Name, c.Archived); err != nil {
-			return err
-		}
+	if err := saveCategories(tx, l.Categories); err != nil {
+		return err
 	}
-	for currency, amount := range l.Opening {
-		if _, err := tx.Exec("INSERT INTO opening_balances (currency, amount) VALUES (?, ?)", currency, amount); err != nil {
-			return err
-		}
+	if err := saveJournals(tx, l.Journals); err != nil {
+		return err
 	}
 	for currency, rate := range l.Rates {
 		if _, err := tx.Exec("INSERT INTO rates (currency, rate) VALUES (?, ?)", currency, rate); err != nil {
@@ -163,16 +160,25 @@ func saveSnapshot(tx *sql.Tx, l service.Ledger) error {
 	}
 	stmt, err := tx.Prepare(`
 		INSERT INTO operations
-			(id, date, currency, amount, received_currency, received_amount, category_id, rate, rubles)
-		VALUES (?, ?, ?, ?, nullif(?, ''), nullif(?, 0), nullif(?, 0), nullif(?, 0), CASE WHEN ? = '' THEN ? END)
+			(journal_id, id, date, currency, amount, received_currency, received_amount, category_id, rate, rubles)
+		VALUES (?, ?, ?, ?, ?, nullif(?, ''), nullif(?, 0), nullif(?, 0), nullif(?, 0), CASE WHEN ? = '' THEN ? END)
 	`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 	for _, op := range l.Operations {
-		if _, err := stmt.Exec(op.ID, op.Date, op.Currency, op.Amount, op.Received, op.Incoming,
+		if _, err := stmt.Exec(op.JournalID, op.ID, op.Date, op.Currency, op.Amount, op.Received, op.Incoming,
 			op.CategoryID, op.Rate, op.Received, op.Rubles); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func saveCategories(tx *sql.Tx, categories []service.Category) error {
+	for _, c := range categories {
+		if _, err := tx.Exec("INSERT INTO categories (id, name, archived) VALUES (?, ?, ?)", c.ID, c.Name, c.Archived); err != nil {
 			return err
 		}
 	}

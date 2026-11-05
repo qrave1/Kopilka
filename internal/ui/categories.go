@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"kopilka/internal/service"
@@ -11,16 +12,17 @@ import (
 
 func (s *screen) categories() {
 	header := container.NewVBox(
-		widget.NewLabel("Категории"),
-		widget.NewButton("Добавить категорию", s.afterTap(func() { s.editCategory(-1) })),
+		sectionTitle("Категории"),
+		widget.NewButtonWithIcon("Добавить категорию", theme.ContentAddIcon(), s.afterTap(func() { s.editCategory(-1) })),
 	)
 	active := container.NewVBox()
 	archive := container.NewVBox()
 	for i, c := range s.ledger.Categories {
 		name := widget.NewLabel(c.Name)
 		name.Truncation = fyne.TextTruncateEllipsis
-		row := container.NewBorder(nil, nil, nil,
-			widget.NewButton("Изменить", s.afterTap(func() { s.editCategory(i) })), name)
+		edit := widget.NewButtonWithIcon("Изменить", theme.DocumentCreateIcon(), s.afterTap(func() { s.editCategory(i) }))
+		edit.Importance = widget.LowImportance
+		row := surface(container.NewBorder(nil, nil, iconBadge(categoryIcon(c.Name)), edit, name))
 		if c.Archived {
 			archive.Add(row)
 		} else {
@@ -35,7 +37,7 @@ func (s *screen) categories() {
 		active.Add(widget.NewLabel("Архив"))
 		active.Add(archive)
 	}
-	s.showPage(categoriesPage, header, nil, container.NewVScroll(active))
+	s.showPage(categoriesPage, container.NewPadded(header), nil, container.NewVScroll(container.NewPadded(active)))
 }
 
 func (s *screen) editCategory(index int) {
@@ -46,7 +48,7 @@ func (s *screen) editCategory(index int) {
 	name := entry(current.Name, "Название категории")
 	fields := container.NewVBox(name)
 	if current.Archived {
-		fields.Add(widget.NewButton("Восстановить категорию", func() {
+		fields.Add(widget.NewButtonWithIcon("Восстановить категорию", theme.ViewRefreshIcon(), func() {
 			next := s.ledger.RestoreCategory(index)
 			if s.persist(next) {
 				s.categories()

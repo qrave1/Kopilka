@@ -70,7 +70,7 @@ func applyMigration(db *sql.DB, files fs.FS, name string, version int) error {
 		return err
 	}
 	if version == 1 {
-		if err := saveSnapshot(tx, service.NewLedger()); err != nil {
+		if err := seedInitialLedger(tx); err != nil {
 			return err
 		}
 	}
@@ -78,4 +78,12 @@ func applyMigration(db *sql.DB, files fs.FS, name string, version int) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func seedInitialLedger(tx *sql.Tx) error {
+	l := service.NewLedger()
+	if _, err := tx.Exec("INSERT INTO ledger_meta VALUES (1, 0, ?, ?)", l.NextCategoryID, l.NextOperationID); err != nil {
+		return err
+	}
+	return saveCategories(tx, l.Categories)
 }

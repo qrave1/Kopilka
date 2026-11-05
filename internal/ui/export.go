@@ -11,25 +11,26 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"kopilka/internal/service"
 )
 
 func (s *screen) exportControls() []fyne.CanvasObject {
-	info := widget.NewLabel("CSV содержит журнал для таблиц. JSON содержит весь журнал, категории, курсы и начальные наличные.")
-	info.Wrapping = fyne.TextWrapWord
 	l := s.ledger
 	return []fyne.CanvasObject{
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Экспорт", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		info,
-		widget.NewButton("Сохранить CSV", func() {
+		container.NewBorder(nil, nil, iconBadge(theme.DownloadIcon()), nil,
+			widget.NewLabelWithStyle("Экспорт", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})),
+		widget.NewLabel("CSV — журнал для таблиц"),
+		widget.NewLabel("JSON — все данные приложения"),
+		widget.NewButtonWithIcon("Сохранить CSV", theme.FileTextIcon(), func() {
 			s.exportFile(".csv", func(w io.Writer) error { return writeCSV(w, l) })
 		}),
-		widget.NewButton("Сохранить JSON", func() {
+		widget.NewButtonWithIcon("Сохранить JSON", theme.DocumentSaveIcon(), func() {
 			s.exportFile(".json", func(w io.Writer) error {
 				encoder := json.NewEncoder(w)
 				encoder.SetIndent("", "  ")
@@ -72,14 +73,17 @@ func writeCSV(output io.Writer, l service.Ledger) error {
 	if err := writer.Write([]string{
 		"id", "date", "type", "category_id", "category", "currency", "amount",
 		"received_currency", "received_amount", "rub_per_unit", "rub_equivalent",
+		"journal_id", "journal",
 	}); err != nil {
 		return err
 	}
 	for _, op := range l.Operations {
+		journal, _ := l.Journal(op.JournalID)
 		row := []string{
 			strconv.FormatInt(op.ID, 10), op.Date, "expense", strconv.FormatInt(op.CategoryID, 10),
 			spreadsheetText(l.CategoryName(op.CategoryID)), op.Currency, decimalText(op.Amount, 2),
 			"", "", decimalText(op.Rate, 6), decimalText(op.Rubles, 2),
+			strconv.FormatInt(op.JournalID, 10), spreadsheetText(journal.Name),
 		}
 		if op.Received != "" {
 			row[2], row[3], row[4] = "exchange", "", ""

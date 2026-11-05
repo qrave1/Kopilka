@@ -18,8 +18,8 @@ type Balance struct {
 	Amount   int64
 }
 
-func (l Ledger) WorsenedNegativeBalances(next Ledger) []Balance {
-	before, after := l.Balances(), next.Balances()
+func (l Ledger) WorsenedNegativeBalances(journalID int64, next Ledger) []Balance {
+	before, after := l.Balances(journalID), next.Balances(journalID)
 	var warnings []Balance
 	for _, currency := range Currencies() {
 		if after[currency] < 0 && after[currency] < before[currency] {
@@ -29,16 +29,22 @@ func (l Ledger) WorsenedNegativeBalances(next Ledger) []Balance {
 	return warnings
 }
 
-func (l Ledger) SuggestedExchange() (from, to string) {
-	balance := l.Balances()
-	if balance["USD"] > 0 && balance["THB"] <= 0 {
-		return "USD", "THB"
+func (l Ledger) SuggestedExchange(journal Journal) (from, to string) {
+	balance := l.Balances(journal.ID)
+	if journal.Currency == "THB" {
+		if balance["USD"] > 0 && balance["THB"] <= 0 {
+			return "USD", "THB"
+		}
+		return "RUB", "USD"
+	}
+	if journal.Currency == "RUB" {
+		return "USD", "RUB"
 	}
 	return "RUB", "USD"
 }
 
-func (l Ledger) WithOpeningCash(inputs map[string]string) (Ledger, error) {
-	l.Opening = make(map[string]int64, len(inputs))
+func (j Journal) WithOpeningCash(inputs map[string]string) (Journal, error) {
+	j.Opening = make(map[string]int64, len(inputs))
 	for _, currency := range Currencies() {
 		input := inputs[currency]
 		if strings.TrimSpace(input) == "" {
@@ -46,12 +52,12 @@ func (l Ledger) WithOpeningCash(inputs map[string]string) (Ledger, error) {
 		}
 		value, err := ParseDecimal(input, 2)
 		if err != nil {
-			return Ledger{}, fmt.Errorf("проверь начальный остаток %s", currency)
+			return Journal{}, fmt.Errorf("проверь начальный остаток %s", currency)
 		}
-		l.Opening[currency] = value
+		j.Opening[currency] = value
 	}
-	l.Started = true
-	return l, nil
+	j.Started = true
+	return j, nil
 }
 
 func (l Ledger) WithRates(inputs map[string]string) (Ledger, error) {
@@ -66,18 +72,22 @@ func (l Ledger) WithRates(inputs map[string]string) (Ledger, error) {
 	return l, nil
 }
 
-func (l Ledger) Balances() map[string]int64 {
-	Balances := make(map[string]int64, len(l.Opening))
-	for currency, amount := range l.Opening {
-		Balances[currency] = amount
+func (l Ledger) Balances(journalID int64) map[string]int64 {
+	journal, _ := l.Journal(journalID)
+	balances := make(map[string]int64, len(journal.Opening))
+	for currency, amount := range journal.Opening {
+		balances[currency] = amount
 	}
 	for _, op := range l.Operations {
-		Balances[op.Currency] -= op.Amount
+		if op.JournalID != journalID {
+			continue
+		}
+		balances[op.Currency] -= op.Amount
 		if op.Received != "" {
-			Balances[op.Received] += op.Incoming
+			balances[op.Received] += op.Incoming
 		}
 	}
-	return Balances
+	return balances
 }
 
 // Seven whole digits keep amount times rate within int64 at the maximum rate.

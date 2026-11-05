@@ -1,39 +1,42 @@
 package store
 
 import (
+	"database/sql"
 	"io/fs"
 	"path/filepath"
 	"testing"
 	"testing/fstest"
-
-	"kopilka/internal/service"
 )
 
 func TestMigrateExistingLedgerAndRetryFailedStep(t *testing.T) {
-	s, err := Open(filepath.Join(t.TempDir(), "ledger.db"))
+	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "ledger.db")+"?_foreign_keys=on")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
-	l, err := s.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	op := service.Operation{Date: "2026-11-05", Currency: "RUB", Amount: 2500,
-		CategoryID: l.Categories[0].ID, Rate: service.RateScale, Rubles: 2500}
-	if err := s.Save(l.WithOperation(-1, op)); err != nil {
-		t.Fatal(err)
-	}
-
+	defer db.Close()
+	s := &Store{db: db}
 	initial, err := fs.ReadFile(migrations, "migrations/001_init.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := fstest.MapFS{
-		"migrations/001_init.sql": {Data: initial},
-		"migrations/002_note.sql": {Data: []byte("ALTER TABLE operations ADD COLUMN note TEXT")},
-		"migrations/003_tag.sql":  {Data: []byte("ALTER TABLE operations ADD COLUMN tag TEXT; INVALID SQL")},
+	journals, err := fs.ReadFile(migrations, "migrations/002_journals.sql")
+	if err != nil {
+		t.Fatal(err)
 	}
+	files := fstest.MapFS{"migrations/001_init.sql": {Data: initial}}
+	if err := migrate(s.db, files); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO operations (id, date, currency, amount, category_id, rate, rubles)
+		VALUES (1, '2026-11-05', 'RUB', 2500, 1, 1000000, 2500);
+		UPDATE ledger_meta SET next_operation_id = 2;
+		INSERT INTO opening_balances (currency, amount) VALUES ('RUB', 5000);
+	`); err != nil {
+		t.Fatal(err)
+	}
+	files["migrations/002_journals.sql"] = &fstest.MapFile{Data: journals}
+	files["migrations/003_tag.sql"] = &fstest.MapFile{Data: []byte("ALTER TABLE operations ADD COLUMN tag TEXT; INVALID SQL")}
 	if err := migrate(s.db, files); err == nil {
 		t.Fatal("expected migration 003 to fail")
 	}
@@ -54,7 +57,7 @@ func TestMigrateExistingLedgerAndRetryFailedStep(t *testing.T) {
 		t.Fatalf("version after retry = %d, error = %v", version, err)
 	}
 	got, err := s.Load()
-	if err != nil || len(got.Operations) != 1 || got.Operations[0].Amount != op.Amount {
+	if err != nil || len(got.Operations) != 1 || got.Operations[0].Amount != 2500 || got.Operations[0].JournalID != 1 || got.Balances(1)["RUB"] != 2500 {
 		t.Fatalf("migration changed journal: %+v, error = %v", got, err)
 	}
 }

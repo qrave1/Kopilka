@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"kopilka/internal/service"
@@ -18,6 +19,7 @@ type screen struct {
 	window     fyne.Window
 	save       func(service.Ledger) error
 	ledger     service.Ledger
+	journalID  int64
 	tapPending bool
 }
 
@@ -65,7 +67,7 @@ func (s *screen) commit(next service.Ledger) {
 
 func (s *screen) saveWithBalanceCheck(next service.Ledger) {
 	var warnings []string
-	for _, balance := range s.ledger.WorsenedNegativeBalances(next) {
+	for _, balance := range s.ledger.WorsenedNegativeBalances(s.journalID, next) {
 		warnings = append(warnings, balance.Currency+" "+money(balance.Amount, balance.Currency))
 	}
 	if len(warnings) > 0 {
@@ -95,12 +97,15 @@ func decimalText(amount int64, places int) string {
 }
 
 func (s *screen) form(title string, fields *fyne.Container, back, save, remove func()) {
-	button := widget.NewButton("Сохранить", s.afterTap(save))
+	button := widget.NewButtonWithIcon("Сохранить", theme.ConfirmIcon(), s.afterTap(save))
 	button.Importance = widget.HighImportance
 	actions := container.NewVBox(button)
 	if remove != nil {
-		actions.Add(widget.NewButton("Удалить запись", remove))
+		actions.Add(widget.NewButtonWithIcon("Удалить запись", theme.DeleteIcon(), remove))
 	}
-	top := container.NewVBox(widget.NewButton("Назад", s.afterTap(back)), widget.NewLabel(title))
-	s.window.SetContent(container.NewBorder(top, actions, nil, nil, container.NewVScroll(fields)))
+	backButton := widget.NewButtonWithIcon("Назад", theme.NavigateBackIcon(), s.afterTap(back))
+	backButton.Importance = widget.LowImportance
+	top := container.NewVBox(container.NewHBox(backButton), sectionTitle(title))
+	s.window.SetContent(container.NewBorder(container.NewPadded(top), container.NewPadded(actions),
+		nil, nil, container.NewVScroll(container.NewPadded(fields))))
 }
