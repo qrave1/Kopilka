@@ -58,11 +58,12 @@ adb install -r Kopilka.apk
 
 ## Публикация в GitHub Releases
 
-После коммита с нужными изменениями создай и отправь тег версии. Например:
+Закоммить изменения в `master`, затем запусти скрипт из PowerShell. Например:
 
 ```powershell
-git tag v0.0.14
-git push origin v0.0.14
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\release.ps1 v0.0.15
 ```
+
+Параметр `-ExecutionPolicy RemoteSigned` действует только в запущенном процессе PowerShell. Скрипт проверяет ветку, чистоту рабочей папки и доступность тега. Затем он создаёт аннотированный тег и атомарно отправляет `master` и тег в `origin`.
 
 Workflow `.github/workflows/android-release.yml` запускает тесты, собирает APK для Android ARM64 и прикрепляет `Kopilka-android-arm64.apk` к релизу этого тега. Номер сборки вычисляется из версии тега, поэтому следующий тег должен быть больше предыдущего. APK подписан отладочной подписью Fyne для установки напрямую.

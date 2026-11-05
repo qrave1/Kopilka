@@ -50,9 +50,20 @@ jobs:
       - name: Select Android SDK and NDK
         shell: bash
         run: |
-          sdk="$ANDROID_HOME"
-          sdkmanager --sdk_root="$sdk" --install \
-            "platforms;android-36" "build-tools;$BUILD_TOOLS_VERSION" "ndk;$NDK_VERSION"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          missing=()
+          [[ -f "$sdk/platforms/android-36/android.jar" ]] || missing+=("platforms;android-36")
+          [[ -x "$sdk/build-tools/$BUILD_TOOLS_VERSION/aapt2" ]] || missing+=("build-tools;$BUILD_TOOLS_VERSION")
+          [[ -f "$sdk/ndk/$NDK_VERSION/source.properties" ]] || missing+=("ndk;$NDK_VERSION")
+
+          if (( ${#missing[@]} )); then
+            sdkmanager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+            if [[ ! -x "$sdkmanager" ]]; then
+              echo "::error::Android SDK Manager not found at $sdkmanager"
+              exit 1
+            fi
+            "$sdkmanager" --sdk_root="$sdk" --install "${missing[@]}"
+          fi
 
           # Fyne picks the SDK tools by scanning these directories.
           selected_sdk="$RUNNER_TEMP/kopilka-android-sdk"
