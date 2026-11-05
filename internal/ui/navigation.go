@@ -11,7 +11,7 @@ type page int
 
 const (
 	journalPage page = iota
-	tripsPage
+	converterPage
 	categoriesPage
 	settingsPage
 )
@@ -27,7 +27,7 @@ func (s *screen) showPageWithNavigation(active page, header, actions, body fyne.
 		open  func()
 	}{
 		{"Журнал", theme.HomeIcon(), s.home},
-		{"Поездки", suitcaseIcon, s.trips},
+		{"Конвертер", swapIcon, s.converter},
 		{"Категории", tagIcon, s.categories},
 		{"Настройки", theme.SettingsIcon(), s.settings},
 	}
@@ -52,4 +52,10 @@ func (s *screen) showPageWithNavigation(active page, header, actions, body fyne.
 	footer.Add(widget.NewSeparator())
 	footer.Add(surface(bar))
 	s.window.SetContent(container.NewBorder(header, footer, nil, nil, body))
+}
+
+func (s *screen) settingsPage(title string, body fyne.CanvasObject) {
+	back := widget.NewButtonWithIcon("Назад", theme.NavigateBackIcon(), s.afterTap(s.settings))
+	header := container.NewVBox(container.NewHBox(back), sectionTitle(title))
+	s.window.SetContent(container.NewBorder(container.NewPadded(header), nil, nil, nil, container.NewVScroll(container.NewPadded(body))))
 }

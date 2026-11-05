@@ -24,7 +24,8 @@ func (s *screen) home() {
 		}
 	}
 	if !ok {
-		s.trips()
+		s.showPage(journalPage, container.NewPadded(sectionTitle("Журнал")), nil,
+			container.NewPadded(container.NewVBox(widget.NewButtonWithIcon("Поездки", suitcaseIcon, s.afterTap(s.trips)))))
 		return
 	}
 	balance := s.ledger.Balances(journal.ID)

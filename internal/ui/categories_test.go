@@ -21,6 +21,7 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 	}
 	s := screen{window: w, ledger: l, save: storage.Save}
 	s.home()
+	tapButton(t, w, "Поездки")
 	tapButton(t, w, "Новая поездка")
 	controls[*widget.Entry](w.Content())[0].SetText("Таиланд")
 	tapButton(t, w, "Сохранить")
@@ -36,6 +37,7 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 	tapButton(t, w, "Путешествие")
 	tapButton(t, w, "Сохранить")
 	tapButton(t, w, "Настройки")
+	tapButton(t, w, "Управление данными")
 	exportButtons := 0
 	for _, button := range controls[*widget.Button](w.Content()) {
 		if button.Text == "Сохранить CSV" || button.Text == "Сохранить JSON" {
@@ -45,6 +47,7 @@ func TestCategoryCreatedInUIIsAvailableAndSavesInExpense(t *testing.T) {
 	if exportButtons != 2 {
 		t.Fatalf("expected CSV and JSON export buttons in settings, found %d", exportButtons)
 	}
+	tapButton(t, w, "Назад")
 	tapButton(t, w, "Журнал")
 	tapButton(t, w, "Добавить трату")
 

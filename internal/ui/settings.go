@@ -52,6 +52,8 @@ func (s *screen) settings() {
 	if journal, ok := s.ledger.Journal(s.journalID); ok && !journal.Archived {
 		fields.Add(widget.NewButtonWithIcon("Начальные наличные", walletIcon, s.afterTap(func() { beforeLeave(s.openingCash) })))
 	}
+	fields.Add(widget.NewButtonWithIcon("Поездки", suitcaseIcon, s.afterTap(func() { beforeLeave(s.trips) })))
+	fields.Add(widget.NewButtonWithIcon("Управление данными", theme.DownloadIcon(), s.afterTap(func() { beforeLeave(s.manageData) })))
 	rateFields := container.NewVBox(
 		container.NewBorder(nil, nil, iconBadge(swapIcon), nil, widget.NewLabel("Курсы валют")),
 	)
@@ -65,12 +67,6 @@ func (s *screen) settings() {
 		rateFields.Add(container.NewVBox(widget.NewLabel("Курс "+currency+" в рублях"), rates[currency]))
 	}
 	fields.Add(surface(rateFields))
-	fields.Add(surface(container.NewVBox(s.exportControls()...)))
-	if s.data.Reset != nil {
-		remove := widget.NewButtonWithIcon("Удалить все данные", theme.DeleteIcon(), s.confirmReset)
-		remove.Importance = widget.DangerImportance
-		fields.Add(surface(container.NewVBox(widget.NewLabel("Сброс данных"), remove)))
-	}
 
 	save := widget.NewButtonWithIcon("Сохранить", theme.ConfirmIcon(), func() {
 		next, err := s.ledger.WithRates(inputValues(rates))
@@ -86,6 +82,16 @@ func (s *screen) settings() {
 	save.OnTapped = s.afterTap(save.OnTapped)
 	s.showPageWithNavigation(settingsPage, container.NewPadded(sectionTitle("Настройки")), save,
 		container.NewVScroll(container.NewPadded(fields)), beforeLeave)
+}
+
+func (s *screen) manageData() {
+	fields := container.NewVBox(surface(container.NewVBox(s.exportControls()...)))
+	if s.data.Reset != nil {
+		remove := widget.NewButtonWithIcon("Удалить все данные", theme.DeleteIcon(), s.confirmReset)
+		remove.Importance = widget.DangerImportance
+		fields.Add(surface(container.NewVBox(widget.NewLabel("Сброс данных"), remove)))
+	}
+	s.settingsPage("Управление данными", fields)
 }
 
 func (s *screen) confirmReset() {

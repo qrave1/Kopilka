@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
@@ -18,11 +17,10 @@ func (s *screen) categories() {
 	active := container.NewVBox()
 	archive := container.NewVBox()
 	for i, c := range s.ledger.Categories {
-		name := widget.NewLabel(c.Name)
-		name.Truncation = fyne.TextTruncateEllipsis
-		edit := widget.NewButtonWithIcon("Изменить", theme.DocumentCreateIcon(), s.afterTap(func() { s.editCategory(i) }))
+		edit := widget.NewButton(c.Name, s.afterTap(func() { s.editCategory(i) }))
+		edit.Alignment = widget.ButtonAlignLeading
 		edit.Importance = widget.LowImportance
-		row := surface(container.NewBorder(nil, nil, newCategoryMark(c.Icon).content(), edit, name))
+		row := surface(container.NewBorder(nil, nil, newCategoryMark(c.Icon).content(), nil, edit))
 		if c.Archived {
 			archive.Add(row)
 		} else {
@@ -34,7 +32,7 @@ func (s *screen) categories() {
 	}
 	if len(archive.Objects) > 0 {
 		active.Add(widget.NewSeparator())
-		active.Add(widget.NewLabel("Архив"))
+		active.Add(widget.NewLabel("Скрытые категории"))
 		active.Add(archive)
 	}
 	s.showPage(categoriesPage, container.NewPadded(header), nil, container.NewVScroll(container.NewPadded(active)))
@@ -47,15 +45,9 @@ func (s *screen) editCategory(index int) {
 	}
 	name := entry(current.Name, "Название категории")
 	icon := current.Icon
-	fields := container.NewVBox(name, categoryIconPicker(&icon))
-	if current.Archived {
-		fields.Add(widget.NewButtonWithIcon("Восстановить категорию", theme.ViewRefreshIcon(), func() {
-			next := s.ledger.RestoreCategory(index)
-			if s.persist(next) {
-				s.categories()
-			}
-		}))
-	}
+	hidden := widget.NewCheck("Скрыть при добавлении расхода", nil)
+	hidden.SetChecked(current.Archived)
+	fields := container.NewVBox(name, hidden, categoryIconPicker(&icon))
 	var remove func()
 	if index >= 0 && (!current.Archived || !s.ledger.CategoryInUse(current.ID)) {
 		remove = func() {
@@ -76,6 +68,11 @@ func (s *screen) editCategory(index int) {
 			dialog.ShowError(err, s.window)
 			return
 		}
+		savedIndex := index
+		if savedIndex < 0 {
+			savedIndex = len(next.Categories) - 1
+		}
+		next.Categories[savedIndex].Archived = hidden.Checked
 		if s.persist(next) {
 			s.categories()
 		}

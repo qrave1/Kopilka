@@ -13,7 +13,6 @@ import (
 func (s *screen) trips() {
 	add := widget.NewButtonWithIcon("Новая поездка", theme.ContentAddIcon(), s.afterTap(s.newTrip))
 	add.Importance = widget.HighImportance
-	header := container.NewVBox(sectionTitle("Поездки"), add)
 	active, archived := container.NewVBox(), container.NewVBox()
 	for _, journal := range s.ledger.Journals {
 		if journal.Kind != service.TripJournal {
@@ -52,7 +51,7 @@ func (s *screen) trips() {
 		active.Add(widget.NewLabel("Завершённые поездки"))
 		active.Add(archived)
 	}
-	s.showPage(tripsPage, container.NewPadded(header), nil, container.NewVScroll(container.NewPadded(active)))
+	s.settingsPage("Поездки", container.NewVBox(add, active))
 }
 
 func (s *screen) newTrip() {
